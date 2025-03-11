@@ -58,17 +58,19 @@ async def on_message(message: discord.Message):
     # Process the message with the agent you wrote
     # Open up the agent.py file to customize the agent
     logger.info(f"Processing message from {message.author}: {message.content}")
-    response = await agent.run(message)
+    response = await agent.run(message) # a list of tuples ("message", "file_path")
 
-    if response.endswith(".mp3") or response.endswith(".mid") or response.endswith(".musicxml"):
-        try: 
-            file_path = os.path.join(os.getcwd(), response)
-            await message.reply("Here is the transcribed file: ", file=discord.File(file_path))
-        except Exception as e:
-            logger.error(f"Error sending file: {e}")
-    else:
-        # Send the response back to the channel
-        await message.reply(response)
+    for res, file_path in response:
+        if file_path and (file_path.endswith(".mp3") or file_path.endswith(".mid") or file_path.endswith(".musicxml")):
+            try: 
+                print(f"Sending file: {file_path}, with message: {res}")
+                # file_path = os.path.join(os.getcwd(), file_path)
+                await message.reply(res, file=discord.File(file_path))
+            except Exception as e:
+                logger.error(f"Error sending file: {e}")
+        else:
+            # Send the response back to the channel
+            await message.reply(res)
 
 
 # Commands
