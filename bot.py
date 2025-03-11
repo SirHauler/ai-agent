@@ -57,8 +57,15 @@ async def on_message(message: discord.Message):
     logger.info(f"Processing message from {message.author}: {message.content}")
     response = await agent.run(message)
 
-    # Send the response back to the channel
-    await message.reply(response)
+    if response.endswith(".mp3"):
+        try: 
+            file_path = os.path.join(os.getcwd(), response)
+            await message.reply("Here is the transcribed file: ", file=discord.File(file_path))
+        except Exception as e:
+            logger.error(f"Error sending file: {e}")
+    else:
+        # Send the response back to the channel
+        await message.reply(response)
 
 
 # Commands
