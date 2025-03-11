@@ -4,7 +4,7 @@ import discord
 import json
 from youtube.download import download_audio
 from transcribe.audio2midi import audio2midi
-from transcribe.midi2score import midi2score
+from transcribe.midi2score import midi2score, score2pdf
 from audio.audio_processor import AudioProcessor
 MISTRAL_MODEL = "mistral-large-latest"
 SYSTEM_PROMPT = """
@@ -15,6 +15,8 @@ Your responses will be a list of requests such as:
 where there could be 1 to many items in the list.
 
 Your responses should be in the form of a JSON list. Do not include ``` or ```json at the beginning or end of your response.
+
+If you are asked to do something, and no audio file, youtube link, or link is referenced, return 'none' for <youtube_link> in the JSON list.
 
 You are given a message from a user and you need to check if the user is asking for any of the following:
 
@@ -37,9 +39,13 @@ class MistralAgent:
 
         self.audio_processor = AudioProcessor()
 
-        self.audio_path = None
+        self.message_history = []
 
-    def handle_message(self, message: str):
+        self.youtube_to_audio_path = {}
+
+        self.last_audio_path = None
+
+    async def handle_message(self, message: discord.Message):
         print("Handling message...", message)
         
         json_list = json.loads(message)
@@ -51,17 +57,23 @@ class MistralAgent:
                 return "I'm sorry, I don't understand that request."
 
             if obj["type"] == "MIDI":
-                midi_path = self.transcribe_to_midi(obj["youtube_link"])
-                results.append(("MIDI: ", midi_path))
+                audio_path = self.get_cached_audio_path(obj["youtube_link"])
+                midi_file_path = self.transcribe_to_midi(obj["youtube_link"], audio_path)
+                results.append(("MIDI: ", midi_file_path))
 
             if obj["type"] == "SHEET_MUSIC":
-                midi_file_path = self.transcribe_to_midi(obj["youtube_link"])
+                audio_path = self.get_cached_audio_path(obj["youtube_link"])
+                midi_file_path = self.transcribe_to_midi(obj["youtube_link"], audio_path)
                 music_xml_path = self.convert_to_sheet_music(midi_file_path)
-                results.append(("Sheet music: ", music_xml_path))
+                # pdf_file_path = score2pdf(music_xml_path)
+                # results.append(("PDF of sheet music: ", pdf_file_path))
+                results.append(("Editable sheet music: ", music_xml_path))
             
             if obj["type"] == "TRIM":
-                audio_path = self.audio_processor.trim_audio(obj["youtube_link"], obj["start_time"], obj["end_time"])
-                self.audio_path = audio_path
+                audio_path = self.get_cached_audio_path(obj["youtube_link"])
+                audio_path = self.audio_processor.trim_audio(obj["youtube_link"], obj["start_time"], obj["end_time"], audio_path)
+                self.youtube_to_audio_path[obj["youtube_link"]] = audio_path
+                self.last_audio_path = audio_path
                 results.append(("Trimmed audio: ", audio_path))
 
         return results
@@ -81,12 +93,12 @@ class MistralAgent:
             messages=messages,
         )
 
-        return self.handle_message(response.choices[0].message.content)
+        return await self.handle_message(response.choices[0].message.content)
 
-    def transcribe_to_midi(self, youtube_link: str):
+    def transcribe_to_midi(self, youtube_link: str, audio_path: str):
         # first download the audio from the youtube link
         try:
-            audio_file_path = download_audio(youtube_link)
+            audio_file_path = download_audio(youtube_link) if audio_path is None else audio_path
         except Exception as e:
             print("Error downloading audio:", e)
             return "I'm sorry, I couldn't download the audio from the youtube link."
@@ -109,3 +121,11 @@ class MistralAgent:
             return "I'm sorry, I couldn't convert the MIDI file to sheet music."
 
         return music_xml_file_path
+    
+    def get_cached_audio_path(self, youtube_link: str):
+        if youtube_link in self.youtube_to_audio_path:
+            return self.youtube_to_audio_path[youtube_link]
+        elif youtube_link == "none":
+            return self.last_audio_path
+        else:
+            return None

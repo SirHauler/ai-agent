@@ -17,7 +17,7 @@ load_dotenv()
 # Create the bot with all intents
 # The message content and members intent must be enabled in the Discord Developer Portal for the bot to work.
 intents = discord.Intents.all()
-bot = commands.Bot(command_prefix=PREFIX, intents=intents)
+bot = commands.Bot(command_prefix=PREFIX, intents=intents, help_command=None)
 
 # Import the Mistral agent from the agent.py file
 agent = MistralAgent()
@@ -38,6 +38,7 @@ async def on_ready():
     logger.info(f"{bot.user} has connected to Discord!")
 
     # Send a welcome message to the channel
+    await bot.get_channel(1348019812374417491).send("Hello! I'm the Music Bot. I can help you transcribe music from YouTube videos to MIDI, sheet music, and more. Type `!help` to see the available commands.")
         
 
 
@@ -58,6 +59,10 @@ async def on_message(message: discord.Message):
     # Process the message with the agent you wrote
     # Open up the agent.py file to customize the agent
     logger.info(f"Processing message from {message.author}: {message.content}")
+
+    # reply to the user with an initial message
+    await message.reply("Got it! Give me a moment to work on your requests...")
+
     response = await agent.run(message) # a list of tuples ("message", "file_path")
 
     for res, file_path in response:
@@ -86,6 +91,33 @@ async def ping(ctx, *, arg=None):
     else:
         await ctx.send(f"Pong! Your argument was {arg}")
 
+@bot.command(name="help", help="Shows the list of available commands and features")
+async def help_command(ctx):
+    help_text = """
+**🎵 Music Transcription Bot Help 🎵**
+
+This bot can help you with music transcription and audio processing tasks.
+
+**Commands:**
+`!help` - Shows this help message
+`!ping` - Check if the bot is responsive
+
+**Features:**
+1. **MIDI Conversion**
+   Simply share a YouTube link and ask for MIDI conversion
+   Example: "Can you convert this to MIDI: [youtube link]"
+
+2. **Sheet Music Generation**
+   Share a YouTube link to get sheet music
+   Example: "Create sheet music for this: [youtube link]"
+
+3. **Audio Trimming**
+   Trim audio from YouTube videos by specifying start and end times
+   Example: "Trim this video from 1:30 to 2:45: [youtube link]"
+
+You can combine multiple requests in a single message!
+"""
+    await ctx.send(help_text)
 
 # Start the bot, connecting it to the gateway
 bot.run(token)

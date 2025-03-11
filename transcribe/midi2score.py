@@ -1,6 +1,8 @@
 # convert midi to score
 
 import os
+import music21
+
 def midi2score(midi_file_path: str):
     return _midi2score(midi_file_path)
 
@@ -28,3 +30,10 @@ def _midi2score(midi_file_path: str, output_file_path = None):
         f.write(response.text)
 
     return output_file_path
+
+
+def score2pdf(score_file_path: str):
+    score = music21.converter.parse(score_file_path)
+    pdf_file_path = score_file_path.replace(".musicxml", ".pdf")
+    score.write("lily.png", pdf_file_path)
+    return pdf_file_path

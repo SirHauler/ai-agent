@@ -1,6 +1,4 @@
 import yt_dlp
-def download_youtube_video(youtube_link: str) -> str:
-    import yt_dlp
 
 def download_audio(video_url):
     # Options for downloading best audio and converting it to MP3
