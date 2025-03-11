@@ -11,11 +11,11 @@ def download_audio(video_url):
             'preferredcodec': 'mp3',       # Convert to MP3 format
             'preferredquality': '192',     # Set the audio quality (in kbps)
         }],
-        'outtmpl': 'uploads/%(title)s.%(ext)s',    # Output filename template: video title with appropriate extension
+        'outtmpl': 'uploads/%(id)s.%(ext)s',    # Output filename template: video title with appropriate extension
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info_dict = ydl.extract_info(video_url)
-        audio_file_path = 'output/' + info_dict.get('title', None) + '.mp3'
+        audio_file_path = 'uploads/' + info_dict.get('id', None) + '.mp3'
         
     return audio_file_path

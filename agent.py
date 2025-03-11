@@ -3,8 +3,8 @@ from mistralai import Mistral
 import discord
 import json
 from youtube.download import download_audio
-import os 
-
+from transcribe.audio2midi import audio2midi
+from transcribe.midi2score import midi2score
 MISTRAL_MODEL = "mistral-large-latest"
 SYSTEM_PROMPT = """
 Is this message asking for a youtube link to be transcribed to MIDI or to be converted to sheet music?
@@ -33,7 +33,8 @@ class MistralAgent:
             return self.transcribe_to_midi(obj["youtube_link"])
 
         if obj["type"] == "SHEET_MUSIC":
-            return self.convert_to_sheet_music(obj["youtube_link"])
+            midi_file_path = self.transcribe_to_midi(obj["youtube_link"])
+            return self.convert_to_sheet_music(midi_file_path)
 
     async def run(self, message: discord.Message):
         # The simplest form of an agent
@@ -61,18 +62,19 @@ class MistralAgent:
 
         print("Transcribing to MIDI...", audio_file_path)
 
-        # basename of the audio file
-        audio_filename = os.path.basename(audio_file_path)
-        print("Audio filename:", audio_filename)
+        # convert the audio to midi
+        midi_file_path = audio2midi(audio_file_path)
 
         # then route to the midi2score model
-        return audio_file_path
+        return midi_file_path
         
 
-    def convert_to_sheet_music(self, youtube_link: str):
+    def convert_to_sheet_music(self, midi_file_path: str):
         # first download the audio from the youtube link
-        download_audio(youtube_link)
+        try:
+            music_xml_file_path = midi2score(midi_file_path)
+        except Exception as e:
+            print("Error converting to sheet music:", e)
+            return "I'm sorry, I couldn't convert the MIDI file to sheet music."
 
-        # then convert the audio to sheet music
-        # use the openai api to convert the audio to sheet music
-        # return the sheet music
+        return music_xml_file_path

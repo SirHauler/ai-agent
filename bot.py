@@ -37,6 +37,9 @@ async def on_ready():
     """
     logger.info(f"{bot.user} has connected to Discord!")
 
+    # Send a welcome message to the channel
+        
+
 
 @bot.event
 async def on_message(message: discord.Message):
@@ -57,7 +60,7 @@ async def on_message(message: discord.Message):
     logger.info(f"Processing message from {message.author}: {message.content}")
     response = await agent.run(message)
 
-    if response.endswith(".mp3"):
+    if response.endswith(".mp3") or response.endswith(".mid") or response.endswith(".musicxml"):
         try: 
             file_path = os.path.join(os.getcwd(), response)
             await message.reply("Here is the transcribed file: ", file=discord.File(file_path))
