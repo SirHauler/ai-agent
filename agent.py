@@ -3,7 +3,14 @@ from mistralai import Mistral
 import discord
 
 MISTRAL_MODEL = "mistral-large-latest"
-SYSTEM_PROMPT = "You are a helpful assistant."
+SYSTEM_PROMPT = """
+Is this message asking for a youtube link to be transcribed to MIDI or to be converted to sheet music?
+
+If it is asking for a song to be transcribed to MIDI, respond with {"type": "MIDI", "youtube_link": <youtube_link>}.
+If it is asking for a song to be converted to sheet music, respond with {"type": "SHEET_MUSIC", "youtube_link": <youtube_link>}.
+
+Otherwise, respond with {"type": "none"}.
+"""
 
 
 class MistralAgent:
