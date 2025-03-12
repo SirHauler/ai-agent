@@ -7,7 +7,10 @@ def audio2midi(audio_file_path: str, output_file_path = None):
         # basename of the audio file
         print("Audio file path:", audio_file_path)
         print("Current working directory:", os.getcwd())
-        midi_filename = os.path.basename(audio_file_path).replace(".mp3", ".mid")
+        if audio_file_path.endswith(".wav"):
+            midi_filename = os.path.basename(audio_file_path).replace(".wav", ".mid")
+        else:
+            midi_filename = os.path.basename(audio_file_path).replace(".mp3", ".mid")
         output_file_path = os.path.join(os.getcwd(), "results", midi_filename)
 
     run_transkun(audio_file_path, output_file_path, use_gpu=True)

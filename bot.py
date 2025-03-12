@@ -1,7 +1,7 @@
 import os
 import discord
 import logging
-
+import subprocess
 from discord.ext import commands
 from dotenv import load_dotenv
 from agent import MistralAgent
@@ -37,8 +37,36 @@ async def on_ready():
     """
     logger.info(f"{bot.user} has connected to Discord!")
 
+    MESSAGE = """
+    🎵 Hello! I'm the Songscription Bot! 🤖 I'm here to help you with all your music transcription needs! 
+
+    I can:
+    🎹 Convert YouTube videos to MIDI files
+    📝 Generate sheet music from videos (You can upload a video)
+    ✂️ Trim audio clips
+    🔍 Search for songs on YouTube
+    🎼 Separate audio into stems
+
+    Example Ask: 
+
+    "Create sheet music for this song: https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    OR 
+    "Search for a performance of Fur Elise and provide me sheet music"
+    OR 
+    "Trim this audio from 1:30 to 2:45: https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    OR
+    "Separate this audio and give me the vocals"
+
+
+    Type `!help` to see all available commands!
+
+    Powered by https://songscription.ai for professional-grade MIDI and sheet music generation 🎼
+    (songscription's models are custom trained by myself and a few friends!)
+    """
+
     # Send a welcome message to the channel
-    await bot.get_channel(1348019812374417491).send("Hello! I'm the Music Bot. I can help you transcribe music from YouTube videos to MIDI, sheet music, and more. Type `!help` to see the available commands.")
+    await bot.get_channel(1348019812374417491) \
+        .send(MESSAGE)
         
 
 
@@ -52,10 +80,27 @@ async def on_message(message: discord.Message):
     # Don't delete this line! It's necessary for the bot to process commands.
     await bot.process_commands(message)
 
+    message_history = ""
+
     # Ignore messages from self or other bots to prevent infinite loops.
     if message.author.bot or message.content.startswith("!"):
         return
+    
+    if message.attachments:
+        for attachment in message.attachments:
+            file_name = attachment.filename
+            file_path = os.path.join(os.getcwd(), 'uploads', file_name)
 
+            if file_name.endswith(".mp4"):
+                # convert to mp3
+                file_path = os.path.join(os.getcwd(), 'uploads', file_name.replace(".mp4", ".mp3"))
+                subprocess.run(["ffmpeg", "-i", attachment.url, file_path])
+            else:
+                await attachment.save(file_path)
+
+            agent.last_audio_path = file_path
+            agent.songs.append({"youtube_link": None,"file_path": file_path, "name": file_name})
+        message_history += f"----Uploaded file: {file_name}---\n"
     # Process the message with the agent you wrote
     # Open up the agent.py file to customize the agent
     logger.info(f"Processing message from {message.author}: {message.content}")
@@ -63,10 +108,19 @@ async def on_message(message: discord.Message):
     # reply to the user with an initial message
     await message.reply("Got it! Give me a moment to work on your requests...")
 
-    response = await agent.run(message) # a list of tuples ("message", "file_path")
+    # message_history = []
+    # async for msg in message.channel.history(limit=2):
+    #     message_history.append(msg.content)
+
+
+    response = await agent.run(message, message_history) # a list of tuples ("message", "file_path")
 
     for res, file_path in response:
-        if file_path and (file_path.endswith(".mp3") or file_path.endswith(".mid") or file_path.endswith(".musicxml")):
+        if isinstance(file_path, dict): 
+            # convert the dict to a string
+            reply = res + "\n" + file_path["url"]
+            await message.reply(reply)
+        elif file_path and (file_path.endswith(".mp3") or file_path.endswith(".wav") or file_path.endswith(".mid") or file_path.endswith(".musicxml")):
             try: 
                 print(f"Sending file: {file_path}, with message: {res}")
                 # file_path = os.path.join(os.getcwd(), file_path)
@@ -94,28 +148,28 @@ async def ping(ctx, *, arg=None):
 @bot.command(name="help", help="Shows the list of available commands and features")
 async def help_command(ctx):
     help_text = """
-**🎵 Music Transcription Bot Help 🎵**
+        **🎵 Music Transcription Bot Help 🎵**
 
-This bot can help you with music transcription and audio processing tasks.
+        This bot can help you with music transcription and audio processing tasks.
 
-**Commands:**
-`!help` - Shows this help message
-`!ping` - Check if the bot is responsive
+        **Commands:**
+        `!help` - Shows this help message
+        `!ping` - Check if the bot is responsive
 
-**Features:**
-1. **MIDI Conversion**
-   Simply share a YouTube link and ask for MIDI conversion
-   Example: "Can you convert this to MIDI: [youtube link]"
+        **Features:**
+        1. **MIDI Conversion**
+        Simply share a YouTube link and ask for MIDI conversion or upload an audio file to get MIDI
+        Example: "Can you convert this to MIDI: [youtube link]"
 
-2. **Sheet Music Generation**
-   Share a YouTube link to get sheet music
-   Example: "Create sheet music for this: [youtube link]"
+        2. **Sheet Music Generation**
+        Share a YouTube link to get sheet music or upload an audio file to get sheet music
+        Example: "Create sheet music for this: [youtube link]"
 
-3. **Audio Trimming**
-   Trim audio from YouTube videos by specifying start and end times
-   Example: "Trim this video from 1:30 to 2:45: [youtube link]"
+        3. **Audio Trimming**
+        Trim audio from YouTube videos by specifying start and end times
+        Example: "Trim this video from 1:30 to 2:45: [youtube link]"
 
-You can combine multiple requests in a single message!
+        You can combine multiple requests in a single message!
 """
     await ctx.send(help_text)
 
